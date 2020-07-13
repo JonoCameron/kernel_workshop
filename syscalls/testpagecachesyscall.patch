@@ -1,0 +1,69 @@
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 03ef99a85..3e0f8f192 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -344,6 +344,7 @@
+ 333	common	io_pgetevents		sys_io_pgetevents
+ 334	common	rseq			sys_rseq
+ 335	common	add2int			sys_add2int
++336	common	pagecache_counter	sys_pagecache_counter
+ 
+ # don't use numbers 387 through 423, add new calls after the last
+ # 'common' entry
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 5399fcf6b..e7816d2bc 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1425,5 +1425,6 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+ 			    const struct old_timespec32 __user *timeout);
+ 
+ asmlinkage long sys_add2int(int a, int b);
++asmlinkage int sys_pagecache_counter(char* hits, char* miss);
+ #endif
+ 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 6567d65c0..e16bf49ef 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1,4 +1,4 @@
+-// SPDX-License-Identifier: GPL-2.0
++	// SPDX-License-Identifier: GPL-2.0
+ /*
+  *  linux/kernel/sys.c
+  *
+@@ -2697,4 +2697,35 @@ SYSCALL_DEFINE2(add2int, int, a, int, b)
+ 	printk(KERN_INFO "syscall: add2int: a=%i, b=%i, result=%li\n", a, b, result);
+ 	return result;
+ }
++
++SYSCALL_DEFINE2(pagecache_counter, char*, hits, char*, miss)
++{
++	int fd0, fd1;
++	int succ0, succ1;
++	char hitsbuf[8];
++	char missbuf[8];
++
++	mm_segment_t old_fs = get_fs();
++	set_fs(KERNEL_DS);
++
++	fd0 = ksys_open("/proc/sys/vm/pagecache_hits", O_RDONLY, 0);
++	if(fd0 < 0){
++		return -ENOENT;
++	}
++	ksys_read(fd0, hitsbuf, 8);
++	if(ksys_close(fd0) < 0);
++	succ0 = copy_to_user(hits, hitsbuf, 8);
++
++	fd1 = ksys_open("/proc/sys/vm/pagecache_misses", O_RDONLY, 0);
++	if(fd1 < 0){
++		return -ENOENT;
++	}
++	ksys_read(fd1, missbuf, 8);
++	ksys_close(fd1);
++	succ1 = copy_to_user(miss, missbuf, 8);
++
++	set_fs(old_fs);
++
++	return 0;
++}
+ #endif /* CONFIG_COMPAT */
