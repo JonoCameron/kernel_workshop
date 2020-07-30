@@ -1,0 +1,67 @@
+From 9f242fc24e243195c01dc85b6d2c33627cdfbf9e Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 10:09:53 -0400
+Subject: [PATCH 1/6] add2int
+
+---
+ Makefile                               | 2 +-
+ arch/x86/entry/syscalls/syscall_64.tbl | 2 ++
+ include/linux/syscalls.h               | 2 ++
+ kernel/sys.c                           | 6 ++++++
+ 4 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 229e67f2f..090b36bd2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -3,7 +3,7 @@ VERSION = 5
+ PATCHLEVEL = 8
+ SUBLEVEL = 0
+ EXTRAVERSION = -rc7
+-NAME = Kleptomaniac Octopus
++NAME = Jonathan Cameron
+ 
+ # *DOCUMENTATION*
+ # To see a list of typical targets execute "make help"
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 78847b32e..03ef99a85 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -343,6 +343,8 @@
+ 332	common	statx			sys_statx
+ 333	common	io_pgetevents		sys_io_pgetevents
+ 334	common	rseq			sys_rseq
++335	common	add2int			sys_add2int
++
+ # don't use numbers 387 through 423, add new calls after the last
+ # 'common' entry
+ 424	common	pidfd_send_signal	sys_pidfd_send_signal
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index b951a87da..07d54f669 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1424,4 +1424,6 @@ long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+ 			    unsigned int nsops,
+ 			    const struct old_timespec32 __user *timeout);
+ 
++asmlinkage long sys_add2int(int a, int b);
+ #endif
++
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 00a96746e..3cef6546b 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2691,4 +2691,10 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
+ 		return -EFAULT;
+ 	return 0;
+ }
++SYSCALL_DEFINE2(add2int, int, a, int, b)
++{
++       long result = a + b;
++       printk(KERN_INFO "syscall: add2int: a=%i, b=%i, result=%li\n", a, b, result);
++       return result;
++}
+ #endif /* CONFIG_COMPAT */
+-- 
+2.25.4
+

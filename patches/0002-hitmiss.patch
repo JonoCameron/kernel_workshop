@@ -1,0 +1,91 @@
+From 884f35c3d98473dc59637dde71e2488d91e24ceb Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 10:38:50 -0400
+Subject: [PATCH 2/6] hitmiss
+
+---
+ include/linux/mm.h |  3 +++
+ kernel/sysctl.c    | 17 +++++++++++++++++
+ mm/filemap.c       | 10 ++++++++++
+ 3 files changed, 30 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index dc7b87310..f10ae7464 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -198,6 +198,9 @@ extern int sysctl_max_map_count;
+ extern unsigned long sysctl_user_reserve_kbytes;
+ extern unsigned long sysctl_admin_reserve_kbytes;
+ 
++
++
++
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+ extern unsigned long sysctl_overcommit_kbytes;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index db1ce7af2..b6f5756d8 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -2644,6 +2644,9 @@ static struct ctl_table kern_table[] = {
+ 	{ }
+ };
+ 
++extern int pagecache_hit;
++extern int pagecache_miss;
++
+ static struct ctl_table vm_table[] = {
+ 	{
+ 		.procname	= "overcommit_memory",
+@@ -2654,6 +2657,20 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= SYSCTL_ZERO,
+ 		.extra2		= &two,
+ 	},
++	{
++		.procname       = "pagecache_hits",
++		.data           = &pagecache_hit,
++		.maxlen         = sizeof(pagecache_hit),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++	},
++	{
++		.procname       = "pagecache_misses",
++		.data           = &pagecache_miss,
++		.maxlen         = sizeof(pagecache_miss),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++	},
+ 	{
+ 		.procname	= "panic_on_oom",
+ 		.data		= &sysctl_panic_on_oom,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 385759c4c..ecdf9d0b6 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1597,6 +1597,10 @@ EXPORT_SYMBOL(find_lock_entry);
+  *
+  * Return: The found page or %NULL otherwise.
+  */
++
++int pagecache_hit;
++int pagecache_miss;
++
+ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
+ 		int fgp_flags, gfp_t gfp_mask)
+ {
+@@ -1604,6 +1608,12 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
+ 
+ repeat:
+ 	page = find_get_entry(mapping, index);
++	if(page){
++		pagecache_hit++;
++	}
++	else{
++		pagecache_miss++;
++	}
+ 	if (xa_is_value(page))
+ 		page = NULL;
+ 	if (!page)
+-- 
+2.25.4
+

@@ -1,0 +1,28 @@
+From 61b7f8888a0d8d92fd9674aa25c16bcf3d8bc722 Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 10:57:10 -0400
+Subject: [PATCH 3/6] dump_stack
+
+---
+ mm/mmap.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8c7ca737a..b4814f709 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1721,8 +1721,10 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	 */
+ 	if (accountable_mapping(file, vm_flags)) {
+ 		charged = len >> PAGE_SHIFT;
+-		if (security_vm_enough_memory_mm(mm, charged))
++		if (security_vm_enough_memory_mm(mm, charged)){
++			dump_stack();
+ 			return -ENOMEM;
++		}
+ 		vm_flags |= VM_ACCOUNT;
+ 	}
+ 
+-- 
+2.25.4
+

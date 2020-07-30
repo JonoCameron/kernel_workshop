@@ -1,0 +1,150 @@
+From f04250dc5f5f39605b734dc07a416cd064d26b50 Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 11:36:48 -0400
+Subject: [PATCH 5/6] dumponENOMEM
+
+---
+ include/linux/mm.h          |  3 +--
+ include/linux/mman.h        |  2 ++
+ include/uapi/linux/sysctl.h |  2 +-
+ kernel/sys.c                | 19 +++++++++++++++++++
+ kernel/sysctl.c             | 10 ++++++++++
+ mm/filemap.c                |  1 +
+ 6 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f10ae7464..7a6a6521d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -198,8 +198,7 @@ extern int sysctl_max_map_count;
+ extern unsigned long sysctl_user_reserve_kbytes;
+ extern unsigned long sysctl_admin_reserve_kbytes;
+ 
+-
+-
++extern int sysctl_error_barf;
+ 
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 4b08e9c9c..7c2cac02d 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -50,6 +50,8 @@
+ 		| MAP_HUGE_2MB \
+ 		| MAP_HUGE_1GB)
+ 
++extern int sysctl_error_barf;
++
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+ extern unsigned long sysctl_overcommit_kbytes;
+diff --git a/include/uapi/linux/sysctl.h b/include/uapi/linux/sysctl.h
+index 27c1ed282..cea39010a 100644
+--- a/include/uapi/linux/sysctl.h
++++ b/include/uapi/linux/sysctl.h
+@@ -161,7 +161,7 @@ enum
+ /* CTL_VM names: */
+ enum
+ {
+-	VM_UNUSED1=1,		/* was: struct: Set vm swapping control */
++	VM_ERROR_BARF=1,	/* was: struct: Set vm swapping control */
+ 	VM_UNUSED2=2,		/* was; int: Linear or sqrt() swapout for hogs */
+ 	VM_UNUSED3=3,		/* was: struct: Set free page thresholds */
+ 	VM_UNUSED4=4,		/* Spare */
+diff --git a/kernel/sys.c b/kernel/sys.c
+index b132c43c9..0b42fd265 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2691,6 +2691,9 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
+ 		return -EFAULT;
+ 	return 0;
+ }
++
++/* add2int is a very primitive system call that takes two intergers and returns their sum */
++
+ SYSCALL_DEFINE2(add2int, int, a, int, b)
+ {
+        long result = a + b;
+@@ -2698,6 +2701,15 @@ SYSCALL_DEFINE2(add2int, int, a, int, b)
+        return result;
+ }
+ 
++/*     pagecounter_counter is a system call that takes to character buffers as arguments
++       to return the pagecache hit/miss counters. Room for expansion would be to define those
++       two values in the same way as sysctl_error_barf to prevent reading through file
++       descriptors....
++       The ability to dump_stack() on error is turned off by default, but can be turned on by
++       echoing a non-zero value into /proc/sys/vm/error_barf. It's not particularly useful
++       but acted as an exercise for me to learn for when I have to implement this across the
++       whole kernel. */
++
+ SYSCALL_DEFINE2(pagecache_counter, char*, hits, char*, miss)
+ {
+        int fd0, fd1;
+@@ -2708,8 +2720,13 @@ SYSCALL_DEFINE2(pagecache_counter, char*, hits, char*, miss)
+        mm_segment_t old_fs = get_fs();
+        set_fs(KERNEL_DS);
+ 
++       if(sysctl_error_barf != 0)
++               dump_stack();
++
+        fd0 = ksys_open("/proc/sys/vm/pagecache_hits", O_RDONLY, 0);
+        if(fd0 < 0){
++               if(sysctl_error_barf != 0)
++                       dump_stack();
+                return -ENOENT;
+        }
+        ksys_read(fd0, hitsbuf, 8);
+@@ -2718,6 +2735,8 @@ SYSCALL_DEFINE2(pagecache_counter, char*, hits, char*, miss)
+ 
+        fd1 = ksys_open("/proc/sys/vm/pagecache_misses", O_RDONLY, 0);
+        if(fd1 < 0){
++               if(sysctl_error_barf != 0)
++                       dump_stack();
+                return -ENOENT;
+        }
+        ksys_read(fd1, missbuf, 8);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index b6f5756d8..da1b46ae3 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -2646,6 +2646,7 @@ static struct ctl_table kern_table[] = {
+ 
+ extern int pagecache_hit;
+ extern int pagecache_miss;
++extern int sysctl_error_barf;
+ 
+ static struct ctl_table vm_table[] = {
+ 	{
+@@ -2671,6 +2672,15 @@ static struct ctl_table vm_table[] = {
+ 		.mode           = 0644,
+ 		.proc_handler   = proc_dointvec_minmax,
+ 	},
++	{
++		.procname       = "error_barf",
++		.data           = &sysctl_error_barf,
++		.maxlen         = sizeof(sysctl_error_barf),
++		.mode           = 0644,
++		.proc_handler   = proc_dointvec_minmax,
++		.extra1         = SYSCTL_ZERO,
++		.extra2         = SYSCTL_ONE,
++	},
+ 	{
+ 		.procname	= "panic_on_oom",
+ 		.data		= &sysctl_panic_on_oom,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ecdf9d0b6..8ddaa629e 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1600,6 +1600,7 @@ EXPORT_SYMBOL(find_lock_entry);
+ 
+ int pagecache_hit;
+ int pagecache_miss;
++int sysctl_error_barf;
+ 
+ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
+ 		int fgp_flags, gfp_t gfp_mask)
+-- 
+2.25.4
+

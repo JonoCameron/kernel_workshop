@@ -1,0 +1,30 @@
+From 2981691e2df980d7f365ff380650818f1d4e059e Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 12:25:36 -0400
+Subject: [PATCH 0/6] *** SUBJECT HERE ***
+
+after completely bricking my VM, this is the set of patches it took to get back to where I was before I bricked it
+
+user (6):
+  add2int
+  hitmiss
+  dump_stack
+  pagecachesyscalls
+  dumponENOMEM
+  macroAndCheese
+
+ Makefile                               |  2 +-
+ arch/x86/entry/syscalls/syscall_64.tbl |  2 +
+ include/linux/mm.h                     | 12 ++++++
+ include/linux/mman.h                   |  2 +
+ include/linux/syscalls.h               |  3 ++
+ include/uapi/linux/sysctl.h            |  2 +-
+ kernel/sys.c                           | 56 ++++++++++++++++++++++++++
+ kernel/sysctl.c                        | 27 +++++++++++++
+ mm/filemap.c                           | 11 +++++
+ mm/mmap.c                              |  5 ++-
+ 10 files changed, 118 insertions(+), 4 deletions(-)
+
+-- 
+2.25.4
+

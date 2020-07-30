@@ -1,0 +1,50 @@
+From 2981691e2df980d7f365ff380650818f1d4e059e Mon Sep 17 00:00:00 2001
+From: user <user@localhost.localdomain>
+Date: Thu, 30 Jul 2020 12:19:03 -0400
+Subject: [PATCH 6/6] macroAndCheese
+
+---
+ include/linux/mm.h | 12 +++++++++++-
+ mm/mmap.c          |  3 +--
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7a6a6521d..35d8c3045 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -198,7 +198,17 @@ extern int sysctl_max_map_count;
+ extern unsigned long sysctl_user_reserve_kbytes;
+ extern unsigned long sysctl_admin_reserve_kbytes;
+ 
+-extern int sysctl_error_barf;
++#define ENOMEM_DUMPER(sysctl_error_barf)						\
++do {											\
++	if (sysctl_error_barf !=0){							\
++		dump_stack();								\
++		printk(KERN_INFO "HAHAHA, dumping stack from ENOMEM_DUMPER!!\n");	\
++		return -ENOMEM;}							\
++	else{										\
++		return -ENOMEM;								\
++	}}										\
++while(0)
++
+ 
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index b4814f709..9c99996c6 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1722,8 +1722,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	if (accountable_mapping(file, vm_flags)) {
+ 		charged = len >> PAGE_SHIFT;
+ 		if (security_vm_enough_memory_mm(mm, charged)){
+-			dump_stack();
+-			return -ENOMEM;
++			ENOMEM_DUMPER(sysctl_error_barf);
+ 		}
+ 		vm_flags |= VM_ACCOUNT;
+ 	}
+-- 
+2.25.4
+
