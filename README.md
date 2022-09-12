@@ -192,6 +192,182 @@ It's usually not necessary to download and rebuild the entire kernel if the obje
 
 (Note: Now would be a good time to google kernel tainting, KERNEL_TAINT flags and their meaning, as well as signed modules and their importance. Signing the module binary code can be explored later.)
 
+### Suggestions to expand the skeleton module, as bonus exercises:
+1. Extend the module to take different strings, to show on the console, from the module parameters list, using the module_param() macro.
+2. Export kernel internal constants, like HZ and USER_HZ to userspace via:
+	a. module parameters, which will automatically be exported to sysfs interface:
+		/sys/module/<modname>/parameters/<params>
+	b. procfs entries
+
+(Note: as soon as students realise the power of extending the kernel with out-of-tree modules, almost any task can be accomplished via this approach. Further reading on the topic: Corbet et al. Linux Device Drivers, Third Edition: https://lwn.net/Kernel/LDD3/ )
+
+## Running the new kernel with QEMU.
+QEMU is a allows us to boot an OS and then debug it, which we can do now that we have compiled our unique Linux OS. To boot it in emulation, we need something called an initramfs or initrd which is essentially a very small, memory based file system (a quick Google here could be helpful). It contains all the libraries and code required to boot up the kernel. Once the kernel boots up, it can load the actual file system and do normal operations. We use a tool called supermin to create this initrd.
+
+### Preparing to run the kernel
+To install supermin, use the following command:
+`$ sudo dnf install supermin` 
+
+Supermin works in two stages, prepare and build. Prepare is where we specify waht packages and libraries to include in the initrd. Build is where this initrd actually gets made. Here are simple commands we can use to prepare a simple initrd.
+
+//Leave the kernel directory and go up one level.
+`$ cd ..`
+
+// Make initrd and rootfs.
+`$ mkdir initrd && cd initrd`
+
+// Prepare the supermin.d subdirectory.
+`$ supermin --prepare bash coreutils -o supermin.d`
+
+// Write a script that welcomes and starts bash.
+`$ echo -e '#!/bin/bash\necho Welcome\nexec bash' > init`
+
+// Change the scripts permissions.
+`$ chmod 0755 init`
+
+// Package our init file into a zip file.
+`$ tar zcf supermin.d/init.tar.gz init`
+
+// Build appliance.d 
+`$ supermin --build --format ext2 supermin.d -o appliance.d`
+
+// Take a look at what we have done with the past 6 instructions.
+`$ tree`
+
+## Running the kernel with QEMU
+Now that we have a kernel and an initrd ready, we can now boot these up. There are many ways we can do this, we will choose QEMU which is a virtual machine emulator. 
+
+Now let's go up one directory to actually run everything. This step is not required but it'll be easier to understand the relative paths of the kernel and initrd from this main directory when we boot up our kernel in the next step.
+
+Assuming you are running x86_64 architecture. the QEMU command you will use is "qemu-system-x86_64". This command takes a bunch of options telling it where the kernel is, where the initrd is and so on. Below is agerneric command which will run your kernel and show the output in the same terminal window. You can read up the qemu man pages and change the options in you want.
+
+GENERIC COMMAND:
+	qemu-system-x86_64 -nodefaults -nographic -kernel <path/to/kernel_image> -initrd <path/to/initrd? -hda <path/to/root_disk? -serial stdio -append "console=ttyS0 root=/dev/sda nokaslr"
+
+In the command above we need to provide path to the kernel image, intid and the root disk.
+
+The kernel image that we need to on our x86 machine would be at a specific place in our Linux directory. The path in this example is /linux/build/arch/x86/boot/bzImage. For initrd, the path would be /initrd/appliance.d/initrd. And the root disk will be at this location initrd/appliance.d/root.
+
+// This makes a bit more sense when we look at tree initrd from the home directory.
+`$ tree initrd`
+
+Then, pay attention to the location of the bzImage. It's in /linux, the kernel we cloned. It's in /linux/build, the directory we created to build our own kernel in. Then it's in /linux/build/arch/x86. This makes sense, if you are running an x86 machine. We only built we our own machine. Finally, it's in /linux/build/arch/x86/boot/bzImage, which is how our VM boots the kernel we want. Just a small aside to hopefully explain things.
+
+The final commmand would look something like this:
+
+// Start QEMU
+`$ qemu-system-x86_64 -nodefaults -nographic -kernel linux/build/arch/x86/boot/bzImage -initrd initrd/appliance.d/initrd -hda initrd/appliance.d/root -serial stdio -append "console=ttyS0 root=dev/sda nokaslr"`
+
+Sit back and observe QEMU boot your new kernel. You should play about (write to some files in the home directory) with the filesystem whilst I find an answer about why memory is persistent when creating files.
+
+If you get an error regarding undefined libusb symbols, this means your libusb package needs to be updated. You need libusb-1.0.22-1.fc28 version, anything older than this will not work. You can download and install the latest rpm (Red Hat Package Manager) yourself through the following commands.
+
+// Update libusb
+`$ wget https://dl.fedoraproject.org/pub/fedora/linux/updates/28/Everything/x86_64/Packages/l/libusbx-1.0.22-1.fc28.x86_64.rpm`
+`$ rpm -U libusbx-1.0.22-1.fc28.x86_64.rpm`
+
+Run the qemu command again and you will see your kernel booting up.
+
+// Exit QEMU
+`$ <crtl-c>`
+
+## Debuggin the kernel with GDB
+Once you make modifications to the kernel, you might want to debug it in case something is not working.
+
+### Changing the QEMU command
+QEMU gives a very nice interface for debugging with GDB. When running the kernel with QEMU, add two options to the command i.e., "-s -S". These two options will make sure that you can step through the kernel code.
+
+The final QEMU command will be as follows.
+
+// Start QEMU in debug mode (add -s -S to the above command)
+`$ qemu-system-x86_64 -s -S -nodefaults -nographic -kernel linux/build/arch/x86/boot/bzImage -initrd initrd/appliance.d/initrd -hda initrd/appliance.d/root -serial stdio -append "console=ttyS0 root=/dev/sda nokaslr"`
+
+The -S flag stops the CPU from starting up. Another instruction needs to be sent to QEMU to make it start. If we type:
+`$ man qemu`, the manual will tell us a little bit about it.
+
+The -s flag opens a GDB server on TCP port 1234. This is the interface we use to continue execution of instructions. Google "debugging with QEMU" to get some help.
+
+### Starting GDB
+Now if you're using Boxes, this next bit will be almost impossible unless you can figure out a way to SSH into the server, because of how Boxes handles the network bridges into the VM. If you can figure out an easy way, please send me an email.
+
+In a separate terminal window, open GDB by typing gdb as follows.
+
+// SSH into the VM with another terminal. Then type:
+`$ gdb ~linux/build/vmlinux
+
+(gdb) `$ target remote localhost:1234`
+0x000000000000fff0 in exception_stacks ()
+
+(gdb) `$ x/3i $rip`
+
+From here, you can start to dig around in the kernel as it boots up, using GDB to step through instructions.
+
+## Stop the kernel and find the corresponding source
+While booting up the kernel in QEMU with GDB attached, stop the kernel's boot process (press ctrl-c in GDB). Then GDB will show which function the kernel is currently in.
+
+For example, after booting the kernel in debug mode with the QEMU command above, and logging into another terminal to run GDB, continue the kernel's boot process.
+
+// Type "c" into GDB which is listening on localhost:1234
+(gdb) `$ c`
+Continuing.
+`ctrl-c`
+Program received signal SIGINT, Interrupt.
+0xffffffff813f2f8e in ext4_mpage_readpages
+.....
+
+The question is, how can we find the function above, ext4_mpages_readpages(), in the 2 million lines of kernel source?
+
+We could "grep" the entire source, which is an awfully slow and inefficient way to navigate source code. So if grep is not right, what can we do? Cscope comes to our rescue. With Cscope, we can build an index of the source tree once and then reuse that index to quickly find/jump to any symbol we want. 
+
+// Install Cscope
+`$ sudo dnf install cscope`
+
+// Navigate to the Linux source directory
+`$ cd linux`
+
+// Run cscope to build the index (-b), recursively over all the files in the same directory (-R)
+`$ cscope -R -b -v`
+
+// Use vim to open whichever C file has the implementation of the function we're looking for.
+`$ vim -t ext4_mpage_readpages`
+
+// Exit vim once you've had a look around the code.
+`:q`
+
+## Kernel Patching
+In the Linux kernel, changes to the source code are implemented via kernel patches. THese kernel patches are unified diffs of the source repository and can be seen by the output of the following commands
+
+// Enter Linux directory
+`$ cd linux`
+
+// See the recent commits. Since we cloned with --depth=1, we only see one recent commit.
+`$ git log`
+
+### Creating a kernel patch
+This next part of the tutorial will be really helpful in the future for when you start working with large codebases with multiple contributors. It will also be a bit like school though... You probably won't use this stuff exactly, but it'll be nice to be familiar...
+
+// See what is changed in your Linux kernel since we cloned from the repo.
+`$ git diff` 
+
+Let's start a new branch with Git.
+Git is a fantastic tool for version control. It accurately keeps track of who added what to the codebase and when it was added. And if the additions are no good, they can easily be removed. By using our own branch to develop our own kernel, we don't have to worry about new releases. Also, we don't have to worry about corrupting the main branch with our developments if we work in our own branch.
+
+// Create and switch to our own new branch
+`$ git checkout -b eddybox`
+
+// Check that we're in another branch
+`$ git branch`
+
+
+
+
+
+
+
+
+
+
+
 
 
 
