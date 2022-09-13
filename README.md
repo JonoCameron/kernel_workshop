@@ -30,11 +30,9 @@ Due to the nature of this exercise, I would recommend using a VM, although you a
 - If you brick the VM, you won't destroy your own machine.
 - You can follow more closely using the same machine I used for this exercise.
 
-For reference, my host machine is running Fedora 36 and I use Boxes to run the VM. It doesn't matter what you use to virtualise, as long as you can select "Fedora server 36" as the VM.
+For reference, my host machine is running Fedora 36 and I use Boxes to run the VM. It doesn't matter what you use to virtualise, as long as you can select "Fedora 36" as the VM.
 
-Before installation, make sure to give your VM as many CPU cores as you can. 100GB ought to be more than enough disk space. Whilst installing your F36 server VM, make sure to enable root and to create an administrator account. 
-
-The reason for using F36 server edition is there is no GUI for you to use, forcing you poke around in the terminal. :D
+Before installation, make sure to give your VM as many CPU cores as you can. 100GB ought to be more than enough disk space. Whilst installing your F36 VM, make sure to enable root and to create an administrator account if that is an option. 
 
 ## Update the kernel and download some useful packages
 Chances are you will have installed the latest and greatest if you downloaded your kernel image, but just to be safe.
@@ -110,7 +108,7 @@ Imagine you made some really cool changes to the kernel that you want to deploy 
 `$ sudo make O=build modules_install install`
 
 // Set the new kernel as the default to boot into.
-`$ sudo grub-set-default 0`
+`$ sudo grub2-set-default 0`
 
 // Check what we're currently running
 `$ uname -srm`
@@ -216,13 +214,13 @@ Supermin works in two stages, prepare and build. Prepare is where we specify wah
 // Make initrd and rootfs.
 `$ mkdir initrd && cd initrd`
 
-// Prepare the supermin.d subdirectory.
+// Prepare the supermin.d subdirectory. This might hang a little while.
 `$ supermin --prepare bash coreutils -o supermin.d`
 
 // Write a script that welcomes and starts bash.
 `$ echo -e '#!/bin/bash\necho Welcome\nexec bash' > init`
 
-// Change the scripts permissions.
+// Change the scripts permissions so we can execute it.
 `$ chmod 0755 init`
 
 // Package our init file into a zip file.
@@ -271,7 +269,7 @@ Run the qemu command again and you will see your kernel booting up.
 // Exit QEMU
 `$ <crtl-c>`
 
-## Debuggin the kernel with GDB
+## Debugging the kernel with GDB
 Once you make modifications to the kernel, you might want to debug it in case something is not working.
 
 ### Changing the QEMU command
@@ -350,13 +348,212 @@ This next part of the tutorial will be really helpful in the future for when you
 `$ git diff` 
 
 Let's start a new branch with Git.
-Git is a fantastic tool for version control. It accurately keeps track of who added what to the codebase and when it was added. And if the additions are no good, they can easily be removed. By using our own branch to develop our own kernel, we don't have to worry about new releases. Also, we don't have to worry about corrupting the main branch with our developments if we work in our own branch.
+Git is a fantastic tool for version control. It accurately keeps track of who added what to the codebase and when it was added. And if the additions are no good, they can easily be removed. By using our own branch to develop our own kernel, we don't have to worry about new releases. Also, we don't have to worry about corrupting the main branch with our developments if we work in our own branch. We can always merge our changes to the main branch later with a pull request.
 
 // Create and switch to our own new branch
 `$ git checkout -b eddybox`
 
 // Check that we're in another branch
 `$ git branch`
+
+We can use git commit and git format-patch to create a series of patches that others could then load into their own kernels, or we could merge these patches to the upstream kernel.
+
+// Commit the changes to our branch. At the moment this should just be our edits to the Makefile. Follow the instructions on screen when Git asks you to tell it who you are. A text editor will open, and this is where you should write a commit message to let others know what changed since the last commit. Something like "Our first edit, changed the Makefile."
+`$ git commit -a`
+
+// Check the commit log
+`$ git log`
+
+// Prepare a patch from the latest commit. This creates/formats 1 patch from the HEAD of the git log. The most recent commit is the one we just made, and we can see this when we read the header of our recent commit with "git log". So when we break the next command down, we are telling git to make us a patch that includes every change made from the HEAD to -1 from the HEAD. Which just means putting our Makefile changes in a patch.
+`$ git format-patch -1 HEAD`
+> 0001-<The commit message you entered>.patch
+
+Now we can apply and remove this patch to the kernel.
+
+### Applying and removing a patch to the unchanged kernel.
+Let's start by checking the Makefile.
+
+// Print the top few lines of the Makefile to the screen. We will see our edits to the EXTRAVERSION and NAME.
+`$ cat Makefile | less`
+
+Since the patch is already applied (we did it manually), we can remove it with the following. 
+
+// Install patch.
+`$ sudo dnf install patch`
+
+// Remove the most recent patch.
+`$ patch -p1 -R < 0001-Our-first-edit!.patch`
+
+// Take a look at the Makefile and see our changes have gone!
+`$ cat Makefile | less`
+
+// Reapply the patch
+`$ patch -p1 < 0001-Our-first-edit.patch`
+
+Of course, we could also use git to revert changes, but this way, we have a file we can send to other people via email. If you really mess things up or want to back things up for whatever reason, we can reset the sources back to how we cloned them
+
+// DON'T DO THIS UNLESS YOU ACTUALLY WANT TO GO BACK TO HOW YOU CLONED THE SOURCE.
+`$ git reset --hard <Commit ID>
+
+For example:
+
+// Git diff will show your changes
+`$ git diff`
+	<some changes>
+
+// Git log will show all of the commits since you cloned the project. If you used --depth=1, you will only see a git log to that point.
+`$ git log`
+	commit 3e45cb03..... (HEAD -> eddybox)
+	Author: Jonathan <jcameron@redhat.com>
+	Date: 	Tue Sep 13.....
+
+		Our first edit!
+
+	commit 50635787..... (grafted, origin/master, origin/HEAD, master)
+	Author: Linus Torvalds <torvalds.....
+	Date:	Thu Sep 8.....
+
+		Merge tag 'spi-fix-.....
+		.....
+
+//So then to undo our changes, we can use:
+`$ git reset --hard 50635787.....`
+
+// Check the logs
+`$ git diff`
+	<no changes>
+
+Now we will learn how to send all the patches that we're going to make to the upstream community.
+
+// Install git-email.
+`$ sudo dnf install git-email`
+
+Because we are using git-email for the first time, we will need to configure the smtp (ongoing mail) server settings using the "git config" utility. Type the following commands in the terminal to send from Red Hat's smtp server using your Red Hat email address. If you don't have a Red Hat email account, you'll need to find the setting for your account.
+
+1. git config --global sendemail.smtpuser <Your Red Hat email>
+2. git config --global sendemail.smtpencryption ssl
+3. git config --global sendemail.smtpserver smtp.gmail.com
+4. git config --global sendemail.smtpserverport 465
+
+You can check if the configuratio is what you wanted in the fields we just edited with the following two methods.
+
+// Retype the command without the value.
+`$ sudo git config --global sendemail.<key>
+
+OR
+
+// View the /.gitconfig file.
+`$ cat /home/fedora/.gitconfig
+
+Now we're going to use the utility to send a patch to ourselves, just to check everything is working. This is part of the tutorial where YMMV. Send-email is tricky to get working with 2FA.
+
+// Initiate the utility and follow the prompts.
+`$ git send-email --suppress-cc=all 0001-Our-first-edit.patch --from=<Your email>`
+
+## Defining a new System Call and creating a patch to distribute it.
+Depending on the complexity of the syscall, it can be very easy or a bit tricky to add a one, depending on what code paths the function touches.
+
+To do it, we need to carry out three steps
+1. Add the new syscall to the end of the syscall table in arch/x86/entry/syscalls/syscall_64.tbl, taking the next available system call number.
+2. Add the appropriate asmlinkage declaration in include/linux/syscalls.h
+3. Add your new syscall code in kernel/sys.c using the SYSCALL_DEFINE2(...) macro. (The macros will do most of the work for you "automagically".
+
+1. Editing the syscall table
+
+// Change into the linux working directory, make sure you are in your branch.
+`$ cd linux`
+
+// Open the syscall table file. Maybe take some time to poke around in the source code in this directory. You can add a syscall wherever you like in this table, as long as it doesn't clash with the comments already in the file.
+`$ vim arch/x86/entry/syscalls/syscall_64.tbl`
+
+Here you should enter (I chose 451 for this example):
+	451	common	add2int		sys_add2int
+Save and quit.
+
+2. Editing the syscall header file.
+
+// Open the header file
+`$ include/linux/syscalls.h`
+
+Here you can make edits almost anywhere, but I would recommend doing it after all of the headers, includes and DEFINEs. If you can find a gap between some other "asmlinkage long..." prototypes that would be good to keep things neat and tidy.
+
+Add a comment that you can search to go back to easily.
+	/* Kernel workshop additions go here. */
+	asmlinkage long sys_add2int(long a, long b);
+Save and quit.
+
+3. Edit the syscall file.
+
+// Open the syscall file.
+`$ vim kernel/sys.c`
+
+Again, find a suitable place amongst the other function definitions and add this block.
+	/* This is the definition of our new function that adds two integers. */
+	SYSCALL_DEFINE2(add2int, long, a, long, b)
+	{
+		long result = a + b;
+		printk(KERN_INFO "syscall: add2int: a = %ld, b = %ld, result = %ld\n", a, b, result);
+		return result;
+	}
+Save and quit.
+
+### Rebuilding the kernel to add the new system call.
+// Rebuild the kernel
+`$ time make O=build -j``nproc`` bzImage modules`
+
+// Install the new kernel
+'$ sudo make O=build modules_install install`
+
+// Set the new default to boot into.
+`$ sudo grub2-set-default 0`
+
+// Reboot
+`$ sudo init 6`
+
+Congratulations! You have just added a new syscall to your own version of the Linux kernel! How do you feel? Let's test the function!
+
+// Go to /linux, make a directory for testing, and open a new file.
+`$ vim test.c
+
+Write a C program to test your syscall:
+	/*
+	 * Test the add2int syscall (451)
+	 */
+	#define _GNU_SOURCE
+	#include <unistd.h>
+	#include <stdlib.h>
+	#include <sys/syscall.h>
+	#include <stdio.h>
+
+	#define SYS_add2int 451
+
+	int main(int argc, char *argv)
+	{
+		int a, b;
+		if (argc <= 2) {
+			printf("Must provide 2 integers to pass to the system call\n");
+			return -1;
+		}
+		a = atoi(argv[1]);
+		b = atoi(argv[2]);
+
+		printf("Making a system call with a = %ld, b = %ld\n", a, b);
+		long res = syscall(SYS_add2int, a, b);
+		printf("System call returned %ld\n", res);
+
+		return 0;
+	}
+
+// Compile the program.
+`$ gcc test.c -o test`
+
+// Test it. It's called _add_ 2int for a reason ;)
+`$ ./test 4 5`
+
+
+
+
+	
 
 
 
