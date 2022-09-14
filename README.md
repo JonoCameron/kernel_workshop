@@ -30,7 +30,7 @@ Due to the nature of this exercise, I would recommend using a VM, although you a
 - If you brick the VM, you won't destroy your own machine.
 - You can follow more closely using the same machine I used for this exercise.
 
-For reference, my host machine is running Fedora 36 and I use Boxes to run the VM. It doesn't matter what you use to virtualise, as long as you can select "Fedora 36" as the VM.
+For reference, my host machine is running Fedora 36 and I use Boxes to run the VM. It doesn't matter what you use to virtualise, I would suggest you select "Fedora 36" as the VM.
 
 Before installation, make sure to give your VM as many CPU cores as you can. 100GB ought to be more than enough disk space. Whilst installing your F36 VM, make sure to enable root and to create an administrator account if that is an option. 
 
@@ -53,13 +53,22 @@ Chances are you will have installed the latest and greatest if you downloaded yo
 Building an upstream kernel is easy. Simply download the code, configure the kernel, compile the kernel, install it, then reboot the VM and MAKE SURE YOU BOOT THE NEW KERNEL
 
 ### Cloning (downloading) the upstream kernel tree from GitHub.com
-// We use --depth=1 because the Linux source is a very large repository and we don't want waste time and space downloading code that we don't need. This will pull the latest commit from the main branch.
-`$ git clone --depth=1 https://github.com/torvalds/linux.git`
-// See the new directory, "linux"
-`$ ls -al`
+// We use --depth=1 because the Linux source is a very large repository and we don't want waste time and space downloading code that we don't need. This will pull a specific commit from the main branch.
 
-// Change into the linux directory
-`$ cd linux`
+// Make a directory for our repository
+`$ mkdir linux`
+
+// Initialise a blank repo in the current directory.
+`$ git init`
+
+// Add a remote repository to pull from
+`$ git remote add origin https://github.com/torvalds/linux.git`
+
+// Fetch the specific commit we want. Only clone the top layer from this commit
+`$ git fetch --depth=1 origin ee9108fedf63c6b8cfc40767c472680d51dd1662`
+
+// Fetch this commit from the Github repo.
+`$ git reset --hard FETCH_HEAD`
 
 // Make a build directory to put config files in later
 `$ mkdir build
@@ -551,7 +560,18 @@ Write a C program to test your syscall:
 
 `$ ./test 4 5`
 
-## 
+## Adding page-cache hit/miss counters to the kernel
+This is an exercise in adding files to the /proc filesystem. We will add two files which are counters to the number of hits and misses that happen in the page-cache, and then stress the page-cache and see what happens to those files.
+
+This exercise has 4 parts.
+1. Add page-cache hit/miss counters to the kernel function pagecache_get_page(), then export those counters.
+2. Write a simple filesystem exerciser that writes/read a large file (4GB or 1 million 4KB pages)
+3. Write a utility that counts the page-cache hits and misses via /proc and prints out the page-cache hit/miss ratios every second.
+4. Demonstrate what the hit/miss ratio is when data is cached vs. not cached, and when the filesystem read-ahead in turned off altogether.
+
+1. Ultimately, we will be able to package up the changes we make to the kernel in a patch.
+	a) Add page-cache hit and miss counters to the kernel function pagecache-get-page().
+		i) In the file linux/mm/filemap.c, define two global integers, pagecache_miss and pagecache_hit. They must be defined before and outside of the pagecache_get_page() function.
 
 
 	
