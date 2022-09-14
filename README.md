@@ -38,15 +38,21 @@ Before installation, make sure to give your VM as many CPU cores as you can. 100
 Chances are you will have installed the latest and greatest if you downloaded your kernel image, but just to be safe.
 
 // Update and reboot your VM
+
 `$ sudo dnf update`
+
 `$ sudo init 6`
 
 // Install some useful packages we'll need later for building and editing our own kernel.
+
 `$ sudo dnf groupinstall "C Development Tools and Libraries"`
+
 `$ sudo dnf install elfutils-devel kernel-devel git openssl-devel ncurses-devel gcc make ctags bison flex elfutils-libelf-devel bc wget perl dwarves openssl`
 
 // Check the current kernel we're running and reboot
+
 `$ uname -srm`
+
 `$ sudo init 6`
 
 ## Build a vanilla upstream kernel
@@ -55,25 +61,23 @@ Building an upstream kernel is easy. Simply download the code, configure the ker
 ### Cloning (downloading) the upstream kernel tree from GitHub.com
 // We use --depth=1 because the Linux source is a very large repository and we don't want waste time and space downloading code that we don't need. This will pull a specific commit from the main branch.
 
-// Make a directory for our repository
-`$ mkdir linux`
+// Clone the Linux source
 
-// Initialise a blank repo in the current directory.
-`$ git init`
+`$ git clone --depth=1 https://github.com/torvalds/linux.git`
 
-// Add a remote repository to pull from
-`$ git remote add origin https://github.com/torvalds/linux.git`
+## Configuring the kernel
+Change directory to the newly downloaded kernel directory. Always remember to clean-up the source tree to get rid of any left-over from previous builds.
 
-// Fetch the specific commit we want. Only clone the top layer from this commit
-`$ git fetch --depth=1 origin ee9108fedf63c6b8cfc40767c472680d51dd1662`
+// Change into the cloned directory
 
-// Fetch this commit from the Github repo.
-`$ git reset --hard FETCH_HEAD`
+`$ cd linux`
 
 // Make a build directory to put config files in later
+
 `$ mkdir build`
 
 // Clean up any stale content that may be left over in the linux repo
+
 `$ make mrproper && make clean`
 
 Assuming the current running kernel os older than the kernel you're about to build (updating the kernel to a newer upstream version/release), the quickest way to configure the new kernel is to base the config options options on the config of the running kernel. On Fedora hosts, one can check the configuration of the current running kernel by accessing the abailable /boot/config-$(uname -r) file. 
