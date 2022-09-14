@@ -1,0 +1,190 @@
+From 627928ac8d14cbddd64f69c9f291b5bf36336a0c Mon Sep 17 00:00:00 2001
+From: Jonathan Cameron <jacc@bu.edu>
+Date: Wed, 14 Sep 2022 14:51:35 +0100
+Subject: [PATCH 2/2] Syscall and tests
+
+---
+ arch/x86/entry/syscalls/syscall_64.tbl |   2 +-
+ include/linux/syscalls.h               |   3 +++
+ kernel/sys.c                           |   7 +++++++
+ test_tools/Makefile                    |  10 +++++++++
+ test_tools/main                        | Bin 0 -> 25088 bytes
+ test_tools/test.c                      |  27 +++++++++++++++++++++++++
+ 6 files changed, 48 insertions(+), 1 deletion(-)
+ create mode 100644 test_tools/Makefile
+ create mode 100755 test_tools/main
+ create mode 100644 test_tools/test.c
+
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index c84d12608..f100b3e34 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -372,7 +372,7 @@
+ 448	common	process_mrelease	sys_process_mrelease
+ 449	common	futex_waitv		sys_futex_waitv
+ 450	common	set_mempolicy_home_node	sys_set_mempolicy_home_node
+-
++451	common	add2int			sys_add2int
+ #
+ # Due to a historical design error, certain syscalls are numbered differently
+ # in x32 as compared to native x86_64.  These syscalls have numbers 512-547.
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index a34b0f9a9..a37a5664e 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -345,6 +345,9 @@ asmlinkage long sys_io_uring_enter(unsigned int fd, u32 to_submit,
+ asmlinkage long sys_io_uring_register(unsigned int fd, unsigned int op,
+ 				void __user *arg, unsigned int nr_args);
+ 
++/* Kernel workshop additions go here */
++asmlinkage long sys_add2int(int a, int b);
++
+ /* fs/xattr.c */
+ asmlinkage long sys_setxattr(const char __user *path, const char __user *name,
+ 			     const void __user *value, size_t size, int flags);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index b911fa6d8..6e619087d 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -207,6 +207,13 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
+ 	return error;
+ }
+ 
++/* This is the definition of our new function that adds two interger */
++SYSCALL_DEFINE2(add2int, int, a, int, b) {
++	long result = a + b;
++	printk(KERN_INFO "syscall: add2int: a = %i, b = %i, result = %li\n", a, b, result);
++	return result;
++}
++
+ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+ {
+ 	struct task_struct *g, *p;
+diff --git a/test_tools/Makefile b/test_tools/Makefile
+new file mode 100644
+index 000000000..4ebb7e6c4
+--- /dev/null
++++ b/test_tools/Makefile
+@@ -0,0 +1,10 @@
++# A very simple Makefile
++
++CC = gcc
++CCFLAGS = -I
++
++main: test.o
++	$(CC) -o main test.o
++
++clean:
++	rm -f main *.o
+diff --git a/test_tools/main b/test_tools/main
+new file mode 100755
+index 0000000000000000000000000000000000000000..a074d666474aebea89fce5fa53bc7a0bd583a3f2
+GIT binary patch
+literal 25088
+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
+Gu;O1-QSCec
+
+literal 0
+HcmV?d00001
+
+diff --git a/test_tools/test.c b/test_tools/test.c
+new file mode 100644
+index 000000000..9d9ab803e
+--- /dev/null
++++ b/test_tools/test.c
+@@ -0,0 +1,27 @@
++/*
++ * Test the add2int syscall (451)
++ */
++#define _GNU_SOURCE
++#include <unistd.h>
++#include <stdlib.h>
++#include <sys/syscall.h>
++#include <stdio.h>
++
++#define SYS_add2int 451
++
++int main(int argc, char **argv) {
++	int a, b;
++	if (argc <= 2) {
++		printf("Must provide 2 integers to pass to the system call\n");
++		return -1;
++	}
++	a = atoi(argv[1]);
++	b = atoi(argv[2]);
++
++	printf("Making a system call with a = %d, b = %d\n", a, b);
++	long res = syscall(SYS_add2int, a, b);
++	printf("System call returned %ld\n", res);
++
++	return 0;
++}
++
+-- 
+2.37.3
+
