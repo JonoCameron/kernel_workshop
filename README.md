@@ -71,7 +71,7 @@ Building an upstream kernel is easy. Simply download the code, configure the ker
 `$ git reset --hard FETCH_HEAD`
 
 // Make a build directory to put config files in later
-`$ mkdir build
+`$ mkdir build`
 
 // Clean up any stale content that may be left over in the linux repo
 `$ make mrproper && make clean`
@@ -104,7 +104,7 @@ Now it is time to actually compile the kernel. It can take a long time but we ca
 To compile the kernel, use the following command
 
 // Build the kernel and modules. This will take a while.
-`$ time make O=build -j``nproc`` bzImage modules` 
+`$ time make O=build -j`nproc` bzImage modules` 
 
 This step will take some time. If you configured the kernel and modules correctly, as described above, it should take about 10-15 minutes on a Red Hat machine.
 
