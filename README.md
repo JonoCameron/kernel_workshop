@@ -160,9 +160,9 @@ Let's make a small change to the kernel, recompile, and observe that we're runni
 
 // Edit the EXTRAVERSION string. Maybe append .0 to it. Add your name to the name to the name field as well! Then it's yours :) Save the changes and exit.
  
-// Rebuild the kernel and modules
+// Rebuild the kernel and modules. Again only one set of upticks.
 
-`$ time make O=build -j``nproc`` bzImage modules
+`$ time make O=build -j``nproc`` bzImage modules`
 
 // Install
 
@@ -348,10 +348,11 @@ In a separate terminal window, open GDB by typing gdb as follows.
 
 // SSH into the VM with another terminal. Then type:
 
-`$ gdb ~linux/build/vmlinux
+`$ gdb ~linux/build/vmlinux'
 
 (gdb) `$ target remote localhost:1234`
-0x000000000000fff0 in exception_stacks ()
+
+`> 0x000000000000fff0 in exception_stacks ()`
 
 (gdb) `$ x/3i $rip`
 
@@ -363,10 +364,15 @@ While booting up the kernel in QEMU with GDB attached, stop the kernel's boot pr
 For example, after booting the kernel in debug mode with the QEMU command above, and logging into another terminal to run GDB, continue the kernel's boot process.
 
 // Type "c" into GDB which is listening on localhost:1234
+
 (gdb) `$ c`
+
 Continuing.
+
 `ctrl-c`
+
 Program received signal SIGINT, Interrupt.
+
 0xffffffff813f2f8e in ext4_mpage_readpages
 .....
 
@@ -455,7 +461,7 @@ Since the patch is already applied (we did it manually), we can remove it with t
 
 // Remove the most recent patch.
 
-`$ patch -p1 -R < 0001-Our-first-edit!.patch`
+`$ patch -p1 -R < 0001-Our-first-edit.patch`
 
 // Take a look at the Makefile and see our changes have gone!
 
@@ -469,7 +475,7 @@ Of course, we could also use git to revert changes, but this way, we have a file
 
 // DON'T DO THIS UNLESS YOU ACTUALLY WANT TO GO BACK TO HOW YOU CLONED THE SOURCE.
 
-`$ git reset --hard <Commit ID>
+`$ git reset --hard <Commit ID>`
 
 For example:
 
@@ -481,6 +487,8 @@ For example:
 // Git log will show all of the commits since you cloned the project. If you used --depth=1, you will only see a git log to that point.
 
 `$ git log`
+
+
 	commit 3e45cb03..... (HEAD -> eddybox)
 	Author: Jonathan <jcameron@redhat.com>
 	Date: 	Tue Sep 13.....
@@ -511,22 +519,22 @@ Now we will learn how to send all the patches that we're going to make to the up
 
 Because we are using git-email for the first time, we will need to configure the smtp (ongoing mail) server settings using the "git config" utility. Type the following commands in the terminal to send from Red Hat's smtp server using your Red Hat email address. If you don't have a Red Hat email account, you'll need to find the setting for your account.
 
-1. git config --global sendemail.smtpuser <Your Red Hat email>
-2. git config --global sendemail.smtpencryption ssl
-3. git config --global sendemail.smtpserver smtp.gmail.com
-4. git config --global sendemail.smtpserverport 465
+1. `git config --global sendemail.smtpuser "Your Red Hat email"`
+2. `git config --global sendemail.smtpencryption ssl`
+3. `git config --global sendemail.smtpserver smtp.gmail.com`
+4. `git config --global sendemail.smtpserverport 465`
 
 You can check if the configuratio is what you wanted in the fields we just edited with the following two methods.
 
 // Retype the command without the value.
 
-`$ sudo git config --global sendemail.<key>
+`$ sudo git config --global sendemail."variable"`
 
 OR
 
 // View the /.gitconfig file.
 
-`$ cat /home/fedora/.gitconfig
+`$ cat /home/fedora/.gitconfig`
 
 Now we're going to use the utility to send a patch to ourselves, just to check everything is working. This is part of the tutorial where YMMV. Send-email is tricky to get working with 2FA.
 
@@ -542,6 +550,7 @@ To do it, we need to carry out three steps
 2. Add the appropriate asmlinkage declaration in include/linux/syscalls.h
 3. Add your new syscall code in kernel/sys.c using the SYSCALL_DEFINE2(...) macro. (The macros will do most of the work for you "automagically".
 
+### Implementation
 1. Editing the syscall table
 
 // Change into the linux working directory, make sure you are in your branch.
@@ -553,7 +562,9 @@ To do it, we need to carry out three steps
 `$ vim arch/x86/entry/syscalls/syscall_64.tbl`
 
 Here you should enter (I chose 451 for this example):
+
 	451	common	add2int		sys_add2int
+
 Save and quit.
 
 2. Editing the syscall header file.
@@ -565,8 +576,10 @@ Save and quit.
 Here you can make edits almost anywhere, but I would recommend doing it after all of the headers, includes and DEFINEs. If you can find a gap between some other "asmlinkage long..." prototypes that would be good to keep things neat and tidy.
 
 Add a comment that you can search to go back to easily.
+
 	/* Kernel workshop additions go here. */
 	asmlinkage long sys_add2int(long a, long b);
+
 Save and quit.
 
 3. Edit the syscall file.
@@ -617,6 +630,7 @@ Congratulations! You have just added a new syscall to your own version of the Li
 `$ vim test.c
 
 Write a C program to test your syscall:
+
 	/*
 	 * Test the add2int syscall (451)
 	 */
@@ -663,6 +677,7 @@ This exercise has 4 parts.
 3. Write a utility that counts the page-cache hits and misses via /proc and prints out the page-cache hit/miss ratios every second.
 4. Demonstrate what the hit/miss ratio is when data is cached vs. not cached, and when the filesystem read-ahead in turned off altogether.
 
+## Implementation
 1. Ultimately, we will be able to package up the changes we make to the kernel in a patch.
 	a) Add page-cache hit and miss counters to the kernel function pagecache-get-page().
 		i) In the file linux/mm/filemap.c, define two global integers, pagecache_miss and pagecache_hit. They must be defined before and outside of the pagecache_get_page() function.
