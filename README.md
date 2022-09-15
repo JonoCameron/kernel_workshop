@@ -627,7 +627,7 @@ Congratulations! You have just added a new syscall to your own version of the Li
 
 // Go to /linux, make a directory for testing, and open a new file.
 
-`$ vim test.c
+`$ vim test.c`
 
 Write a C program to test your syscall:
 
