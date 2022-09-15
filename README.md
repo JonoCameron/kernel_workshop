@@ -85,9 +85,11 @@ Assuming the current running kernel os older than the kernel you're about to bui
 The Linux kernel build infrastructure expects the config options to be declared within a .config file in the source directory, therefore to get the vanilla istream kernel set up as a generic Fedora kernel, we need to use the following commands:
 
 // Copy the config of the current system as a basis
+
 `$ sudo cp /boot/config-$(uname -r) build/.config`
 
 // Use the current config with the new kernel
+
 `$ make O=build olddefconfig`
 
 (Note: The second step is required in order to update the current config file, using the provided .config while setting any new config symbols to its default valie without prompting questions about setting up these symbols.)
@@ -95,11 +97,13 @@ The Linux kernel build infrastructure expects the config options to be declared 
 If you want further customisation is wanted/required, you can resort to an ncurses interface offered by the kernel config infrastructere to make the set up process easier.
 
 // Optionally run menuconfig
+
 `$ make O=build menuconfig`
 
 Generic distro kernels (e.g., Fedora's) commonly have hundreds or thousands of kernel components configured as modules. This is useful to ensure that the resulting kernel and modules can run on the largest variery of computer systems. However, more modules implies longer kernel compile times (i.e., a default config will easily take hours to compile). Given that we know exactly which machine the new kernel will run on (the VM that we're currently operating in), we can speed up the compile time by only building the modules we actually need.
 
 // Update config to only build the necessary modules. If you miss this step, the next steps will take hours. You might get some options to answer when you run this command. Press yes.
+
 `$ make O=build localmodconfig`
 
 ## Building the kernel
@@ -107,8 +111,9 @@ Now it is time to actually compile the kernel. It can take a long time but we ca
 
 To compile the kernel, use the following command
 
-// Build the kernel and modules. This will take a while.
-`$ time make O=build -j`nproc` bzImage modules` 
+// Build the kernel and modules. This will take a while. ONLY ONE SET OF UPTICKS.
+
+`$ time make O=build -j``nproc`` bzImage modules` 
 
 This step will take some time. If you configured the kernel and modules correctly, as described above, it should take about 10-15 minutes on a Red Hat machine.
 
@@ -118,18 +123,23 @@ Imagine you made some really cool changes to the kernel that you want to deploy 
 (Note: For the next few steps, you _must_ be root or run via sudo.)
 
 // Install the modules and kernel we just built.
+
 `$ sudo make O=build modules_install install`
 
 // Set the new kernel as the default to boot into.
+
 `$ sudo grub2-set-default 0`
 
 // Check what we're currently running
+
 `$ uname -srm`
 
 // Reboot. Pay attention at the grub menu to choose our new kernel. (It shouldn't match the string printed by the command above, unless your VM was already running a clone from the linux repo)
+
 `$ sudo init 6`
 
 // Login and check what kernel version is running.
+
 `$ uname -srm`
 
 (Note 1: Replaying the steps above without changin the "EXTRAVERSION" string will caise the kernel image and modules to be overwritten by the recently compiled images. If overwriting the kernle artifacts is not the intention, the EXTRAVERSION string must be incremented for every build/install.)
@@ -141,23 +151,29 @@ Imagine you made some really cool changes to the kernel that you want to deploy 
 Let's make a small change to the kernel, recompile, and observe that we're running a newly compiled kernel. An easy thing to change is the EXTRAVERSION string of the kernel.
 
 // Go to our linux directory.
+
 `$ cd linux`
 
 // Open the Makefile with your favourite text editor. I will upset some people by using Vim. This is because I haven't learnt Emacs... yet.
+
 `$ vim Makefile`
 
 // Edit the EXTRAVERSION string. Maybe append .0 to it. Add your name to the name to the name field as well! Then it's yours :) Save the changes and exit.
  
 // Rebuild the kernel and modules
+
 `$ time make O=build -j``nproc`` bzImage modules
 
 // Install
+
 `$ sudo make O=build modules_install install
 
 // Reboot, make sure to boot the right kernel.
+
 `$ sudo init 6`
 
 // Check the version. If you booted the right kernel, you should see a change from the last kernel you booted!
+
 `$ uname -srm`
 
 ## Building (out of the tree) kernel modules
@@ -166,39 +182,51 @@ It's usually not necessary to download and rebuild the entire kernel if the obje
 ## These are the bare-bones to start with building out of tree kernel modules:
 
 // Move back to the home directory.
+
 `$ cd`
 
 // Clone a kernel module directory.
-`$ git clone https://github.com/megele/dummy-kmod
+
+`$ git clone https://github.com/megele/dummy-kmod`
 
 // Move into this repo.
+
 `$ cd dummy-kmod`
 
 // Quickly change the name of the .c file in the directory
+
 `$ mv dummy.c hello.c`
 
 // Compile the module.
+
 `$ make`
 
 // Load the kernel module
+
 `$ sudo insmod hello.ko`
 
 //Inspect the effect of loading the module on one of the internal message boards.
+
 `$ dmesg`
 
 // Unload the kernel module
+
 `$ sudo rmmod hello.ko`
 
 // Inspect the effect of unloading the module.
+
 `$ dmesg`
 
 // Here would be a good time for you to edit the module, just so you go in and take a look at the code.
+
 `$ vim hello.c`
 
 // Make and load again
+
 `$ make && sudo insmod kello.ko && dmesg`
 
 // Unload
+
 `$ sudo rmmod hello.ko`
 
 (Note: Now would be a good time to google kernel tainting, KERNEL_TAINT flags and their meaning, as well as signed modules and their importance. Signing the module binary code can be explored later.)
@@ -217,32 +245,41 @@ QEMU is a allows us to boot an OS and then debug it, which we can do now that we
 
 ### Preparing to run the kernel
 To install supermin, use the following command:
+
 `$ sudo dnf install supermin` 
 
 Supermin works in two stages, prepare and build. Prepare is where we specify waht packages and libraries to include in the initrd. Build is where this initrd actually gets made. Here are simple commands we can use to prepare a simple initrd.
 
 //Leave the kernel directory and go up one level.
+
 `$ cd ..`
 
 // Make initrd and rootfs.
+
 `$ mkdir initrd && cd initrd`
 
 // Prepare the supermin.d subdirectory. This might hang a little while.
+
 `$ supermin --prepare bash coreutils -o supermin.d`
 
 // Write a script that welcomes and starts bash.
+
 `$ echo -e '#!/bin/bash\necho Welcome\nexec bash' > init`
 
 // Change the scripts permissions so we can execute it.
+
 `$ chmod 0755 init`
 
 // Package our init file into a zip file.
+
 `$ tar zcf supermin.d/init.tar.gz init`
 
 // Build appliance.d 
+
 `$ supermin --build --format ext2 supermin.d -o appliance.d`
 
 // Take a look at what we have done with the past 6 instructions.
+
 `$ tree`
 
 ## Running the kernel with QEMU
@@ -260,6 +297,7 @@ In the command above we need to provide path to the kernel image, intid and the 
 The kernel image that we need to on our x86 machine would be at a specific place in our Linux directory. The path in this example is /linux/build/arch/x86/boot/bzImage. For initrd, the path would be /initrd/appliance.d/initrd. And the root disk will be at this location initrd/appliance.d/root.
 
 // This makes a bit more sense when we look at tree initrd from the home directory.
+
 `$ tree initrd`
 
 Then, pay attention to the location of the bzImage. It's in /linux, the kernel we cloned. It's in /linux/build, the directory we created to build our own kernel in. Then it's in /linux/build/arch/x86. This makes sense, if you are running an x86 machine. We only built we our own machine. Finally, it's in /linux/build/arch/x86/boot/bzImage, which is how our VM boots the kernel we want. Just a small aside to hopefully explain things.
@@ -267,6 +305,7 @@ Then, pay attention to the location of the bzImage. It's in /linux, the kernel w
 The final commmand would look something like this:
 
 // Start QEMU
+
 `$ qemu-system-x86_64 -nodefaults -nographic -kernel linux/build/arch/x86/boot/bzImage -initrd initrd/appliance.d/initrd -hda initrd/appliance.d/root -serial stdio -append "console=ttyS0 root=dev/sda nokaslr"`
 
 Sit back and observe QEMU boot your new kernel. You should play about (write to some files in the home directory) with the filesystem whilst I find an answer about why memory is persistent when creating files.
@@ -274,12 +313,15 @@ Sit back and observe QEMU boot your new kernel. You should play about (write to 
 If you get an error regarding undefined libusb symbols, this means your libusb package needs to be updated. You need libusb-1.0.22-1.fc28 version, anything older than this will not work. You can download and install the latest rpm (Red Hat Package Manager) yourself through the following commands.
 
 // Update libusb
+
 `$ wget https://dl.fedoraproject.org/pub/fedora/linux/updates/28/Everything/x86_64/Packages/l/libusbx-1.0.22-1.fc28.x86_64.rpm`
+
 `$ rpm -U libusbx-1.0.22-1.fc28.x86_64.rpm`
 
 Run the qemu command again and you will see your kernel booting up.
 
 // Exit QEMU
+
 `$ <crtl-c>`
 
 ## Debugging the kernel with GDB
@@ -291,6 +333,7 @@ QEMU gives a very nice interface for debugging with GDB. When running the kernel
 The final QEMU command will be as follows.
 
 // Start QEMU in debug mode (add -s -S to the above command)
+
 `$ qemu-system-x86_64 -s -S -nodefaults -nographic -kernel linux/build/arch/x86/boot/bzImage -initrd initrd/appliance.d/initrd -hda initrd/appliance.d/root -serial stdio -append "console=ttyS0 root=/dev/sda nokaslr"`
 
 The -S flag stops the CPU from starting up. Another instruction needs to be sent to QEMU to make it start. If we type:
@@ -304,6 +347,7 @@ Now if you're using Boxes, this next bit will be almost impossible unless you ca
 In a separate terminal window, open GDB by typing gdb as follows.
 
 // SSH into the VM with another terminal. Then type:
+
 `$ gdb ~linux/build/vmlinux
 
 (gdb) `$ target remote localhost:1234`
@@ -331,53 +375,66 @@ The question is, how can we find the function above, ext4_mpages_readpages(), in
 We could "grep" the entire source, which is an awfully slow and inefficient way to navigate source code. So if grep is not right, what can we do? Cscope comes to our rescue. With Cscope, we can build an index of the source tree once and then reuse that index to quickly find/jump to any symbol we want. 
 
 // Install Cscope
+
 `$ sudo dnf install cscope`
 
 // Navigate to the Linux source directory
+
 `$ cd linux`
 
 // Run cscope to build the index (-b), recursively over all the files in the same directory (-R)
+
 `$ cscope -R -b -v`
 
 // Use vim to open whichever C file has the implementation of the function we're looking for.
+
 `$ vim -t ext4_mpage_readpages`
 
 // Exit vim once you've had a look around the code.
+
 `:q`
 
 ## Kernel Patching
 In the Linux kernel, changes to the source code are implemented via kernel patches. THese kernel patches are unified diffs of the source repository and can be seen by the output of the following commands
 
 // Enter Linux directory
+
 `$ cd linux`
 
 // See the recent commits. Since we cloned with --depth=1, we only see one recent commit.
+
 `$ git log`
 
 ### Creating a kernel patch
 This next part of the tutorial will be really helpful in the future for when you start working with large codebases with multiple contributors. It will also be a bit like school though... You probably won't use this stuff exactly, but it'll be nice to be familiar...
 
 // See what is changed in your Linux kernel since we cloned from the repo.
+
 `$ git diff` 
 
 Let's start a new branch with Git.
 Git is a fantastic tool for version control. It accurately keeps track of who added what to the codebase and when it was added. And if the additions are no good, they can easily be removed. By using our own branch to develop our own kernel, we don't have to worry about new releases. Also, we don't have to worry about corrupting the main branch with our developments if we work in our own branch. We can always merge our changes to the main branch later with a pull request.
 
 // Create and switch to our own new branch
+
 `$ git checkout -b eddybox`
 
 // Check that we're in another branch
+
 `$ git branch`
 
 We can use git commit and git format-patch to create a series of patches that others could then load into their own kernels, or we could merge these patches to the upstream kernel.
 
 // Commit the changes to our branch. At the moment this should just be our edits to the Makefile. Follow the instructions on screen when Git asks you to tell it who you are. A text editor will open, and this is where you should write a commit message to let others know what changed since the last commit. Something like "Our first edit, changed the Makefile."
+
 `$ git commit -a`
 
 // Check the commit log
+
 `$ git log`
 
 // Prepare a patch from the latest commit. This creates/formats 1 patch from the HEAD of the git log. The most recent commit is the one we just made, and we can see this when we read the header of our recent commit with "git log". So when we break the next command down, we are telling git to make us a patch that includes every change made from the HEAD to -1 from the HEAD. Which just means putting our Makefile changes in a patch.
+
 `$ git format-patch -1 HEAD`
 > 0001-<The commit message you entered>.patch
 
@@ -387,34 +444,42 @@ Now we can apply and remove this patch to the kernel.
 Let's start by checking the Makefile.
 
 // Print the top few lines of the Makefile to the screen. We will see our edits to the EXTRAVERSION and NAME.
+
 `$ cat Makefile | less`
 
 Since the patch is already applied (we did it manually), we can remove it with the following. 
 
 // Install patch.
+
 `$ sudo dnf install patch`
 
 // Remove the most recent patch.
+
 `$ patch -p1 -R < 0001-Our-first-edit!.patch`
 
 // Take a look at the Makefile and see our changes have gone!
+
 `$ cat Makefile | less`
 
 // Reapply the patch
+
 `$ patch -p1 < 0001-Our-first-edit.patch`
 
 Of course, we could also use git to revert changes, but this way, we have a file we can send to other people via email. If you really mess things up or want to back things up for whatever reason, we can reset the sources back to how we cloned them
 
 // DON'T DO THIS UNLESS YOU ACTUALLY WANT TO GO BACK TO HOW YOU CLONED THE SOURCE.
+
 `$ git reset --hard <Commit ID>
 
 For example:
 
 // Git diff will show your changes
+
 `$ git diff`
 	<some changes>
 
 // Git log will show all of the commits since you cloned the project. If you used --depth=1, you will only see a git log to that point.
+
 `$ git log`
 	commit 3e45cb03..... (HEAD -> eddybox)
 	Author: Jonathan <jcameron@redhat.com>
@@ -430,15 +495,18 @@ For example:
 		.....
 
 //So then to undo our changes, we can use:
+
 `$ git reset --hard 50635787.....`
 
 // Check the logs
+
 `$ git diff`
 	<no changes>
 
 Now we will learn how to send all the patches that we're going to make to the upstream community.
 
 // Install git-email.
+
 `$ sudo dnf install git-email`
 
 Because we are using git-email for the first time, we will need to configure the smtp (ongoing mail) server settings using the "git config" utility. Type the following commands in the terminal to send from Red Hat's smtp server using your Red Hat email address. If you don't have a Red Hat email account, you'll need to find the setting for your account.
@@ -451,16 +519,19 @@ Because we are using git-email for the first time, we will need to configure the
 You can check if the configuratio is what you wanted in the fields we just edited with the following two methods.
 
 // Retype the command without the value.
+
 `$ sudo git config --global sendemail.<key>
 
 OR
 
 // View the /.gitconfig file.
+
 `$ cat /home/fedora/.gitconfig
 
 Now we're going to use the utility to send a patch to ourselves, just to check everything is working. This is part of the tutorial where YMMV. Send-email is tricky to get working with 2FA.
 
 // Initiate the utility and follow the prompts.
+
 `$ git send-email --suppress-cc=all 0001-Our-first-edit.patch --from=<Your email>`
 
 ## Defining a new System Call and creating a patch to distribute it.
@@ -474,9 +545,11 @@ To do it, we need to carry out three steps
 1. Editing the syscall table
 
 // Change into the linux working directory, make sure you are in your branch.
+
 `$ cd linux`
 
 // Open the syscall table file. Maybe take some time to poke around in the source code in this directory. You can add a syscall wherever you like in this table, as long as it doesn't clash with the comments already in the file.
+
 `$ vim arch/x86/entry/syscalls/syscall_64.tbl`
 
 Here you should enter (I chose 451 for this example):
@@ -486,6 +559,7 @@ Save and quit.
 2. Editing the syscall header file.
 
 // Open the header file
+
 `$ include/linux/syscalls.h`
 
 Here you can make edits almost anywhere, but I would recommend doing it after all of the headers, includes and DEFINEs. If you can find a gap between some other "asmlinkage long..." prototypes that would be good to keep things neat and tidy.
@@ -498,34 +572,48 @@ Save and quit.
 3. Edit the syscall file.
 
 // Open the syscall file.
+
 `$ vim kernel/sys.c`
 
 Again, find a suitable place amongst the other function definitions and add this block.
+
 	/* This is the definition of our new function that adds two integers. */
+
 	SYSCALL_DEFINE2(add2int, long, a, long, b)
+
 	{
+
 		long result = a + b;
+
 		printk(KERN_INFO "syscall: add2int: a = %ld, b = %ld, result = %ld\n", a, b, result);
+
 		return result;
+
 	}
+
 Save and quit.
 
 ### Rebuilding the kernel to add the new system call.
 // Rebuild the kernel
+
 `$ time make O=build -j``nproc`` bzImage modules`
 
 // Install the new kernel
-'$ sudo make O=build modules_install install`
+
+`$ sudo make O=build modules_install install`
 
 // Set the new default to boot into.
+
 `$ sudo grub2-set-default 0`
 
 // Reboot
+
 `$ sudo init 6`
 
 Congratulations! You have just added a new syscall to your own version of the Linux kernel! How do you feel? Let's test the function!
 
 // Go to /linux, make a directory for testing, and open a new file.
+
 `$ vim test.c
 
 Write a C program to test your syscall:
@@ -558,9 +646,11 @@ Write a C program to test your syscall:
 	}
 
 // Compile the program.
+
 `$ gcc test.c -o test`
 
 // Test it. It's called _add_ 2int for a reason ;)
+
 
 `$ ./test 4 5`
 
